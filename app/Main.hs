@@ -49,7 +49,7 @@ main = do
             $ contents
 
     case unHelpful . output $ opts of
-        Nothing  -> B.putStrLn . encodeDefaultOrderedByName $ result
+        Nothing  -> B.putStr . encodeDefaultOrderedByName $ result
         (Just x) -> B.writeFile x . encodeDefaultOrderedByName $ result
-    
+
     return ()
