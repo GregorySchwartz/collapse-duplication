@@ -18,6 +18,8 @@ import Data.Csv
 
 -- Local
 
+newtype ID     = ID Int
+newtype Wiggle = Wiggle Int
 
 -- Algebraic
 data PrintITD = PrintITD { label           :: B.ByteString
@@ -37,7 +39,6 @@ instance FromNamedRecord PrintITD
 instance ToNamedRecord PrintITD
 instance DefaultOrdered PrintITD
 
--- Algebraic
 data PrintCollapsedITD = PrintCollapsedITD
     { label           :: B.ByteString
     , fHeader         :: B.ByteString
@@ -56,6 +57,20 @@ instance FromNamedRecord PrintCollapsedITD
 instance ToNamedRecord PrintCollapsedITD
 instance DefaultOrdered PrintCollapsedITD
 
--- Basic
+data PrintWithCloneID = PrintWithCloneID
+    { label           :: B.ByteString
+    , fHeader         :: B.ByteString
+    , fSequence       :: B.ByteString
+    , dSubstring      :: B.ByteString
+    , dLocations      :: B.ByteString
+    , dMutations      :: B.ByteString
+    , sSubstring      :: B.ByteString
+    , sLocation       :: B.ByteString
+    , sOtherLocations :: B.ByteString
+    , classification  :: B.ByteString
+    , cloneID         :: B.ByteString
+    } deriving (Eq, Ord, Show,Generic)
 
--- Advanced
+instance FromNamedRecord PrintWithCloneID
+instance ToNamedRecord PrintWithCloneID
+instance DefaultOrdered PrintWithCloneID

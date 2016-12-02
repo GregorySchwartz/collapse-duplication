@@ -25,8 +25,12 @@ import Types
 import Collapse
 
 -- | Command line arguments
-data Options = Options { output :: Maybe String
-                               <?> "(FILE) The output file."
+data Options = Options { output   :: Maybe String
+                                 <?> "(FILE) The output file."
+                       , appendID :: Bool
+                                 <?> "Append the clone ID to each read rather than having a collapsed output."
+                       , wiggle :: Maybe Int
+                                 <?> "([0] | INT) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
                        }
                deriving (Generic)
 
@@ -36,20 +40,31 @@ main :: IO ()
 main = do
     opts <- getRecord "collapse-duplication, Gregory W. Schwartz.\
                       \ Collapse the duplication output into clones and return\
-                      \ their frequencies."
+                      \ their frequencies or clone IDs."
 
     contents <- fmap (either error id . decodeByName) B.getContents
 
-    let result :: [PrintCollapsedITD]
-        result =
-          concatMap (\xs -> fmap (collapse (length . concat $ xs)) xs)
-            . gather
-            . F.toList
-            . snd
-            $ contents
+    let grouped = case unHelpful . wiggle $ opts of
+                    Nothing  -> gather . F.toList . snd $ contents
+                    (Just x) -> gatherWiggle (Wiggle x)
+                              . F.toList
+                              . snd
+                              $ contents
+        collapsedResult :: [PrintCollapsedITD]
+        collapsedResult = concatMap
+                            (\xs -> fmap (collapse (length . concat $ xs)) xs)
+                            grouped
+        labeledResult   :: [PrintWithCloneID]
+        labeledResult   = concatMap (uncurry addCloneID)
+                        . zip (fmap ID [1..])
+                        . mconcat
+                        $ grouped
+        result          = if unHelpful . appendID $ opts
+                             then encodeDefaultOrderedByName labeledResult
+                             else encodeDefaultOrderedByName collapsedResult
 
     case unHelpful . output $ opts of
-        Nothing  -> B.putStr . encodeDefaultOrderedByName $ result
-        (Just x) -> B.writeFile x . encodeDefaultOrderedByName $ result
+        Nothing  -> B.putStr result
+        (Just x) -> B.writeFile x result
 
     return ()
