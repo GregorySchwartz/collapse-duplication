@@ -27,29 +27,30 @@ import qualified Text.Show.ByteString as B
 -- Local
 import Types
 
--- | Gather all reads of the same structure (same label, then same duplication
--- and spacer location and length) together.
+-- | Gather all reads of the same structure (same duplication
+-- and spacer location and length) together, then collect by sample.
 gather :: [PrintITD] -> [[[PrintITD]]]
-gather = fmap allGather . labelGather
+gather = fmap labelGather . allGather
   where
     allGather   = groupBy ((==) `on` compareFactors)
                 . sortBy (compare `on` compareFactors)
     labelGather = groupBy ((==) `on` (label :: PrintITD -> B.ByteString))
                 . sortBy (compare `on` (label :: PrintITD -> B.ByteString))
 
--- | Gather all reads of approximately the same structure (same label, then same duplication
+-- | Gather all reads of approximately the same structure (same duplication
 -- and spacer location and length) together, depending on the amount of wiggle
--- room for the whole set.
+-- room for the whole set, then collect by sample.
 gatherWiggle :: Wiggle -> [PrintITD] -> [[[PrintITD]]]
-gatherWiggle wiggle = fmap allGather . labelGather
+gatherWiggle wiggle = fmap labelGather . allGather
   where
     allGather   = wiggleCompare wiggle
                 . sortBy (compare `on` compareFactors)
     labelGather = groupBy ((==) `on` (label :: PrintITD -> B.ByteString))
                 . sortBy (compare `on` (label :: PrintITD -> B.ByteString))
 
--- | Gather all reads of approximately the same structure (same label, then same duplication
--- and spacer location and length) together, depending on the amount of wiggle room.
+-- | Gather all reads of approximately the same structure (same duplication
+-- and spacer location and length) together, depending on the amount of wiggle
+-- room.
 wiggleCompare :: Wiggle -> [PrintITD] -> [[PrintITD]]
 wiggleCompare wiggle (x:xs) = go [] [x] xs
   where
@@ -90,14 +91,14 @@ wiggleTest (Wiggle wiggle) x y =
 compareFactors :: PrintITD
                -> ( B.ByteString
                   , B.ByteString
-                  , B.ByteString
+                  -- , B.ByteString
                   -- , B.ByteString
                   , Int64
                   , Int64
                   )
 compareFactors x =
-    ( label (x :: PrintITD)
-    , dLocations (x :: PrintITD)
+    -- ( label (x :: PrintITD) -- Definitely sure you don't want this.
+    ( dLocations (x :: PrintITD)
     , sLocation (x :: PrintITD)
     -- , classification (x :: PrintITD) -- I don't think we want this.
     , B.length $ dSubstring (x :: PrintITD)
@@ -124,8 +125,8 @@ collapse labelLen xs = result . head $ xs
                     }
 
 -- | Add a new clone label to the reads: unique IDs across the input.
-addCloneID :: ID -> [PrintITD] -> [PrintWithCloneID]
-addCloneID (ID cloneID) = fmap addID
+addCloneID :: ID -> Int -> [PrintITD] -> [PrintWithCloneID]
+addCloneID (ID cloneID) labelLen xs = fmap addID xs
   where
     addID rep = PrintWithCloneID
                     { label           = label (rep :: PrintITD)
@@ -138,5 +139,6 @@ addCloneID (ID cloneID) = fmap addID
                     , sLocation       = sLocation (rep :: PrintITD)
                     , sOtherLocations = sOtherLocations (rep :: PrintITD)
                     , classification  = classification (rep :: PrintITD)
+                    , frequency       = genericLength xs / fromIntegral labelLen
                     , cloneID         = B.show cloneID
                     }

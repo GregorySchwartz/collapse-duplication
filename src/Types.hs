@@ -68,6 +68,7 @@ data PrintWithCloneID = PrintWithCloneID
     , sLocation       :: B.ByteString
     , sOtherLocations :: B.ByteString
     , classification  :: B.ByteString
+    , frequency       :: Double
     , cloneID         :: B.ByteString
     } deriving (Eq, Ord, Show,Generic)
 

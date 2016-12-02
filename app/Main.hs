@@ -4,6 +4,7 @@ Gregory W. Schwartz
 Collapse the duplication output into clones and return their frequencies.
 -}
 
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -55,9 +56,11 @@ main = do
                             (\xs -> fmap (collapse (length . concat $ xs)) xs)
                             grouped
         labeledResult   :: [PrintWithCloneID]
-        labeledResult   = concatMap (uncurry addCloneID)
+        labeledResult   = concatMap ((uncurry . uncurry) addCloneID)
+                        . fmap (\(!x, (!y, !z)) -> ((x, y), z))
                         . zip (fmap ID [1..])
-                        . mconcat
+                        . concatMap
+                            (\xs -> zip (fmap length xs) xs)
                         $ grouped
         result          = if unHelpful . appendID $ opts
                              then encodeDefaultOrderedByName labeledResult
