@@ -20,6 +20,7 @@ import Data.Csv
 
 newtype ID     = ID Int
 newtype Wiggle = Wiggle Int
+newtype Label = Label B.ByteString deriving (Eq, Ord)
 
 -- Algebraic
 data PrintITD = PrintITD { label           :: B.ByteString

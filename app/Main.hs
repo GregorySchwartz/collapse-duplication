@@ -5,6 +5,7 @@ Collapse the duplication output into clones and return their frequencies.
 -}
 
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -14,6 +15,7 @@ module Main where
 
 -- Standard
 import Data.List
+import qualified Data.Map.Strict as Map
 import qualified Data.Foldable as F
 
 -- Cabal
@@ -51,16 +53,21 @@ main = do
                               . F.toList
                               . snd
                               $ contents
+        labelMap = getLabelMap . F.toList . snd $ contents
+        countFromGrouped :: [PrintITD] -> Int
+        countFromGrouped =
+            (Map.!) labelMap . Label . (\x -> label (x :: PrintITD)) . head
         collapsedResult :: [PrintCollapsedITD]
-        collapsedResult = concatMap
-                            (\xs -> fmap (collapse (length . concat $ xs)) xs)
-                            grouped
+        collapsedResult =
+            concatMap
+                (\xs -> fmap (collapse ( countFromGrouped . concat $ xs)) xs)
+                grouped
         labeledResult   :: [PrintWithCloneID]
         labeledResult   = concatMap ((uncurry . uncurry) addCloneID)
                         . fmap (\(!x, (!y, !z)) -> ((x, y), z))
                         . zip (fmap ID [1..])
                         . concatMap
-                            (\xs -> zip (fmap length xs) xs)
+                            (\xs -> zip (fmap countFromGrouped xs) xs)
                         $ grouped
         result          = if unHelpful . appendID $ opts
                              then encodeDefaultOrderedByName labeledResult

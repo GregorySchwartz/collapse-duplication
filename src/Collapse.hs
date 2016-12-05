@@ -10,6 +10,7 @@ Collects the functions pertaining to the collapsing of reads into clones.
 module Collapse
     ( gather
     , gatherWiggle
+    , getLabelMap
     , collapse
     , addCloneID
     ) where
@@ -23,6 +24,7 @@ import Data.Function (on)
 -- Cabal
 import qualified Data.ByteString.Lazy.Char8 as B
 import qualified Text.Show.ByteString as B
+import qualified Data.Map.Strict as Map
 
 -- Local
 import Types
@@ -48,6 +50,18 @@ gatherWiggle wiggle = fmap labelGather . allGather
     labelGather = groupBy ((==) `on` (label :: PrintITD -> B.ByteString))
                 . sortBy (compare `on` (label :: PrintITD -> B.ByteString))
 
+-- | Gather all reads of the same label together into a map of how large a label is.
+getLabelMap :: [PrintITD] -> Map.Map Label Int
+getLabelMap xs =
+    Map.fromList
+        . zip (fmap (Label . (\x -> label (x :: PrintITD)) . head) labelGathered)
+        . fmap length
+        $ labelGathered
+  where
+    labelGathered = groupBy ((==) `on` (label :: PrintITD -> B.ByteString))
+                  . sortBy (compare `on` (label :: PrintITD -> B.ByteString))
+                  $ xs
+
 -- | Gather all reads of approximately the same structure (same duplication
 -- and spacer location and length) together, depending on the amount of wiggle
 -- room.
@@ -60,7 +74,7 @@ wiggleCompare wiggle (x:xs) = go [] [x] xs
         if all (wiggleTest wiggle b) accLocal
             then go accGlobal (b:accLocal) bs
             else go (accLocal:accGlobal) [b] bs
-            
+
 -- | Test if two reads are approximately the same structure (same label, then
 -- same duplication and spacer location and length) together, depending on the
 -- amount of wiggle room.
