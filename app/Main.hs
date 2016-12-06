@@ -28,12 +28,12 @@ import Types
 import Collapse
 
 -- | Command line arguments
-data Options = Options { output   :: Maybe String
-                                 <?> "(FILE) The output file."
-                       , appendID :: Bool
-                                 <?> "Append the clone ID to each read rather than having a collapsed output."
-                       , wiggle :: Maybe Int
-                                 <?> "([0] | INT) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
+data Options = Options { output        :: Maybe String
+                                      <?> "(FILE) The output file."
+                       , collapseClone :: Bool
+                                      <?> "Collapse the clone into a representative sequence instead of appending clone IDs to the reads."
+                       , wiggle        :: Maybe Int
+                                      <?> "([0] | INT) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
                        }
                deriving (Generic)
 
@@ -59,19 +59,21 @@ main = do
             (Map.!) labelMap . Label . (\x -> label (x :: PrintITD)) . head
         collapsedResult :: [PrintCollapsedITD]
         collapsedResult =
-            concatMap
-                (\xs -> fmap (collapse ( countFromGrouped . concat $ xs)) xs)
+            fmap 
+                (\ xs -> head
+                       . fmap (collapse ( countFromGrouped . concat $ xs))
+                       $ xs
+                )
                 grouped
         labeledResult   :: [PrintWithCloneID]
-        labeledResult   = concatMap ((uncurry . uncurry) addCloneID)
-                        . fmap (\(!x, (!y, !z)) -> ((x, y), z))
-                        . zip (fmap ID [1..])
-                        . concatMap
-                            (\xs -> zip (fmap countFromGrouped xs) xs)
-                        $ grouped
-        result          = if unHelpful . appendID $ opts
-                             then encodeDefaultOrderedByName labeledResult
-                             else encodeDefaultOrderedByName collapsedResult
+        labeledResult   =
+            concatMap (\ (!cloneID, !xs) -> concatMap (\(!len, !ys) -> addCloneID cloneID len ys) xs)
+                . zip (fmap ID [1..])
+                . fmap (\xs -> zip (fmap countFromGrouped xs) xs)
+                $ grouped
+        result          = if unHelpful . collapseClone $ opts
+                             then encodeDefaultOrderedByName collapsedResult
+                             else encodeDefaultOrderedByName labeledResult
 
     case unHelpful . output $ opts of
         Nothing  -> B.putStr result

@@ -80,7 +80,13 @@ wiggleCompare wiggle (x:xs) = go [] [x] xs
 -- amount of wiggle room.
 wiggleTest :: Wiggle -> PrintITD -> PrintITD -> Bool
 wiggleTest (Wiggle wiggle) x y =
-    (all (<= wiggle) . zipWith (-) (dLoc x) . dLoc $ y)
+    -- For both positions.
+    -- (all (<= wiggle) . zipWith (-) (dLoc x) . dLoc $ y)
+    -- For right position only.
+    (isJust . getLastDLocation $ (x :: PrintITD))
+        && (isJust . getLastDLocation $ (y :: PrintITD))
+        && B.elem '/' (dLocations (y :: PrintITD))
+        && abs (dLoc x - dLoc y) <= wiggle
         && sLocTest (sLoc x) (sLoc y)
         && abs (dLen x - dLen y) <= wiggle
         && abs (sLen x - sLen y) <= wiggle
@@ -90,8 +96,17 @@ wiggleTest (Wiggle wiggle) x y =
     sLocTest _ Nothing = False
     sLocTest Nothing _ = False
     sLocTest (Just a) (Just b) = abs (a - b) <= wiggle
-    dLoc :: PrintITD -> [Int]
-    dLoc x = fmap (fst . fromMaybe (error "Cannot read dLocation") . B.readInt)
+    -- For all positions.
+    -- dLoc :: PrintITD -> [Int]
+    -- dLoc x = fmap (fst . fromMaybe (error "Cannot read dLocation") . B.readInt)
+    --        . B.split '/'
+    --        $ dLocations (x :: PrintITD)
+    -- For the right position only (use the length and spacer instead).
+    dLoc :: PrintITD -> Int
+    dLoc x = fst
+           . fromMaybe (error "Cannot read dLocation")
+           . B.readInt
+           . last
            . B.split '/'
            $ dLocations (x :: PrintITD)
     sLoc :: PrintITD -> Maybe Int
@@ -102,22 +117,31 @@ wiggleTest (Wiggle wiggle) x y =
     sLen x = fromIntegral . B.length $ sSubstring (x :: PrintITD)
 
 -- | What properties we should be gathering reads on.
-compareFactors :: PrintITD
-               -> ( B.ByteString
-                  , B.ByteString
-                  -- , B.ByteString
-                  -- , B.ByteString
-                  , Int64
-                  , Int64
-                  )
+compareFactors :: PrintITD -> (Maybe Int, Maybe Int, Int64, Int64)
 compareFactors x =
-    -- ( label (x :: PrintITD) -- Definitely sure you don't want this.
-    ( dLocations (x :: PrintITD)
-    , sLocation (x :: PrintITD)
-    -- , classification (x :: PrintITD) -- I don't think we want this.
+    --( dLocations (x :: PrintITD)
+    ( getLastDLocation x
+    , fmap fst
+    . B.readInt
+    $ sLocation (x :: PrintITD)
     , B.length $ dSubstring (x :: PrintITD)
     , B.length $ sSubstring (x :: PrintITD)
     )
+
+-- | Get the last dLocation (to the right of the spacer).
+getLastDLocation :: PrintITD -> Maybe Int
+getLastDLocation x =
+    if B.elem '/' $ dLocations (x :: PrintITD)
+        then
+            Just
+                . fst
+                . fromMaybe (error "Cannot read dLocation")
+                . B.readInt
+                . last
+                . B.split '/'
+                $ dLocations (x :: PrintITD)
+        else
+            Nothing
 
 -- | Collapse a list of reads into one read with some additional information
 -- about the group, assuming the group was gathered.
