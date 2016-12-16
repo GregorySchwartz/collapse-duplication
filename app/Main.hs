@@ -59,11 +59,7 @@ main = do
             (Map.!) labelMap . Label . (\x -> label (x :: PrintITD)) . head
         collapsedResult :: [PrintCollapsedITD]
         collapsedResult =
-            fmap 
-                (\ xs -> head
-                       . fmap (collapse ( countFromGrouped . concat $ xs))
-                       $ xs
-                )
+            concatMap (\xs -> zipWith collapse (fmap countFromGrouped xs) xs)
                 grouped
         labeledResult   :: [PrintWithCloneID]
         labeledResult   =
