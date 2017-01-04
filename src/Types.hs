@@ -18,9 +18,10 @@ import Data.Csv
 
 -- Local
 
-newtype ID     = ID Int
-newtype Wiggle = Wiggle Int
-newtype Label = Label B.ByteString deriving (Eq, Ord)
+newtype ID        = ID Int
+newtype Wiggle    = Wiggle Int
+newtype Label     = Label B.ByteString deriving (Eq, Ord)
+newtype Frequency = Frequency Double
 
 -- Algebraic
 data PrintITD = PrintITD { label           :: B.ByteString
@@ -52,7 +53,7 @@ data PrintCollapsedITD = PrintCollapsedITD
     , sOtherLocations :: B.ByteString
     , classification  :: B.ByteString
     , frequency       :: Double
-    } deriving (Eq, Ord, Show,Generic)
+    } deriving (Eq, Ord, Show, Generic)
 
 instance FromNamedRecord PrintCollapsedITD
 instance ToNamedRecord PrintCollapsedITD
@@ -71,7 +72,7 @@ data PrintWithCloneID = PrintWithCloneID
     , classification  :: B.ByteString
     , frequency       :: Double
     , cloneID         :: B.ByteString
-    } deriving (Eq, Ord, Show,Generic)
+    } deriving (Eq, Ord, Show, Generic)
 
 instance FromNamedRecord PrintWithCloneID
 instance ToNamedRecord PrintWithCloneID

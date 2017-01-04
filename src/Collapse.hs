@@ -103,12 +103,7 @@ wiggleTest (Wiggle wiggle) x y =
     --        $ dLocations (x :: PrintITD)
     -- For the right position only (use the length and spacer instead).
     dLoc :: PrintITD -> Int
-    dLoc x = fst
-           . fromMaybe (error "Cannot read dLocation")
-           . B.readInt
-           . last
-           . B.split '/'
-           $ dLocations (x :: PrintITD)
+    dLoc = fromMaybe (error "Cannot read dLocation") . getLastDLocation
     sLoc :: PrintITD -> Maybe Int
     sLoc x = fmap fst . B.readInt $ sLocation (x :: PrintITD)
     dLen :: PrintITD -> Int

@@ -26,14 +26,19 @@ import Options.Generic
 -- Local
 import Types
 import Collapse
+import Filter
 
 -- | Command line arguments
-data Options = Options { output        :: Maybe String
-                                      <?> "(FILE) The output file."
-                       , collapseClone :: Bool
-                                      <?> "Collapse the clone into a representative sequence instead of appending clone IDs to the reads."
-                       , wiggle        :: Maybe Int
-                                      <?> "([0] | INT) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
+data Options = Options { output               :: Maybe String
+                                             <?> "(FILE) The output file."
+                       , collapseClone        :: Bool
+                                             <?> "Collapse the clone into a representative sequence instead of appending clone IDs to the reads."
+                       , wiggle               :: Maybe Int
+                                             <?> "([0] | INT) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
+                       , filterCloneFrequency :: Double
+                                             <?> "([0.01] | DOUBLE) Filter reads (or clones) from clones with too low a frequency. Default is 0.01 (1%)."
+                       , filterReadFrequency  :: Maybe Double
+                                             <?> "([Nothing] | DOUBLE) Filter duplications with too high a frequency (probably false positive if very high, for instance if over half of reads or 0.5). Converts these duplications to \"Normal\" sequences."
                        }
                deriving (Generic)
 
@@ -45,25 +50,40 @@ main = do
                       \ Collapse the duplication output into clones and return\
                       \ their frequencies or clone IDs."
 
-    contents <- fmap (either error id . decodeByName) B.getContents
+    contents <-
+        fmap (F.toList . snd . either error id . decodeByName) B.getContents
 
-    let grouped = case unHelpful . wiggle $ opts of
-                    Nothing  -> gather . F.toList . snd $ contents
-                    (Just x) -> gatherWiggle (Wiggle x)
-                              . F.toList
-                              . snd
-                              $ contents
-        labelMap = getLabelMap . F.toList . snd $ contents
+    let reads   = maybe
+                    contents
+                    (\readFreq -> convertHighFreqToNormal readFreq contents)
+                . fmap Frequency
+                . unHelpful
+                . filterReadFrequency
+                $ opts
+        freq = Frequency . unHelpful . filterCloneFrequency $ opts
+        grouped = case unHelpful . wiggle $ opts of
+                    Nothing  -> gather reads
+                    (Just x) -> gatherWiggle (Wiggle x) reads
+        labelMap = getLabelMap reads
         countFromGrouped :: [PrintITD] -> Int
         countFromGrouped =
             (Map.!) labelMap . Label . (\x -> label (x :: PrintITD)) . head
         collapsedResult :: [PrintCollapsedITD]
-        collapsedResult =
-            concatMap (\xs -> zipWith collapse (fmap countFromGrouped xs) xs)
-                grouped
+        collapsedResult = cloneFrequencyFilter freq
+                        . concatMap (\ xs -> zipWith
+                                                collapse
+                                                (fmap countFromGrouped xs)
+                                                xs
+                                    )
+                        $ grouped
         labeledResult   :: [PrintWithCloneID]
         labeledResult   =
-            concatMap (\ (!cloneID, !xs) -> concatMap (\(!len, !ys) -> addCloneID cloneID len ys) xs)
+            readFrequencyFilter freq
+                . concatMap (\ (!cloneID, !xs) ->
+                                concatMap (\ (!len, !ys) ->
+                                                addCloneID cloneID len ys
+                                          ) xs
+                            )
                 . zip (fmap ID [1..])
                 . fmap (\xs -> zip (fmap countFromGrouped xs) xs)
                 $ grouped
