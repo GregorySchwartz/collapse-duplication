@@ -33,12 +33,14 @@ data Options = Options { output               :: Maybe String
                                              <?> "(FILE) The output file."
                        , collapseClone        :: Bool
                                              <?> "Collapse the clone into a representative sequence instead of appending clone IDs to the reads."
-                       , wiggle               :: Maybe Int
-                                             <?> "([0] | INT) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
+                       , wiggle               :: Maybe Double
+                                             <?> "([0] | DOUBLE) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
                        , filterCloneFrequency :: Double
                                              <?> "([0.01] | DOUBLE) Filter reads (or clones) from clones with too low a frequency. Default is 0.01 (1%)."
                        , filterReadFrequency  :: Maybe Double
                                              <?> "([Nothing] | DOUBLE) Filter duplications with too high a frequency (probably false positive if very high, for instance if over half of reads or 0.5). Converts these duplications to \"Normal\" sequences."
+                       , method               :: Maybe String
+                                             <?> "([Hierarchical] | CompareAll) The method used to group together wiggle room reads. Compare all compares the current element with all elements in the previous sublist."
                        }
                deriving (Generic)
 
@@ -53,21 +55,26 @@ main = do
     contents <-
         fmap (F.toList . snd . either error id . decodeByName) B.getContents
 
-    let reads   = maybe
-                    contents
-                    (\readFreq -> convertHighFreqToNormal readFreq contents)
-                . fmap Frequency
-                . unHelpful
-                . filterReadFrequency
-                $ opts
+    let inputMethod = maybe CompareAll read . unHelpful . method $ opts
+        reads :: [ITDInfo]
+        reads = maybe
+                    (fmap printToInfo contents)
+                    (\ readFreq -> fmap printToInfo
+                                 . convertHighFreqToNormal readFreq
+                                 $ contents
+                    )
+              . fmap Frequency
+              . unHelpful
+              . filterReadFrequency
+              $ opts
         freq = Frequency . unHelpful . filterCloneFrequency $ opts
         grouped = case unHelpful . wiggle $ opts of
                     Nothing  -> gather reads
-                    (Just x) -> gatherWiggle (Wiggle x) reads
+                    (Just x) -> gatherWiggle inputMethod (Wiggle x) reads
         labelMap = getLabelMap reads
-        countFromGrouped :: [PrintITD] -> Int
+        countFromGrouped :: [ITDInfo] -> Int
         countFromGrouped =
-            (Map.!) labelMap . Label . (\x -> label (x :: PrintITD)) . head
+            (Map.!) labelMap . Label . (\x -> label (x :: ITDInfo)) . head
         collapsedResult :: [PrintCollapsedITD]
         collapsedResult = cloneFrequencyFilter freq
                         . concatMap (\ xs -> zipWith
