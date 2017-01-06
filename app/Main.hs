@@ -14,6 +14,7 @@ Collapse the duplication output into clones and return their frequencies.
 module Main where
 
 -- Standard
+import Data.Bool
 import Data.List
 import qualified Data.Map.Strict as Map
 import qualified Data.Foldable as F
@@ -37,6 +38,8 @@ data Options = Options { output               :: Maybe String
                                              <?> "([0] | DOUBLE) Highly recommended to play around with! The amount of wiggle room for defining clones. Instead of grouping exactly by same duplication and spacer location and length, allow for a position distance of this much (so no two reads have a difference of more than this number)."
                        , filterCloneFrequency :: Double
                                              <?> "([0.01] | DOUBLE) Filter reads (or clones) from clones with too low a frequency. Default is 0.01 (1%)."
+                       , absolute             :: Bool
+                                             <?> "Whether to filter reads (or clones) from clones with too low an absolute number for filterCloneFrequency instead frequency."
                        , filterReadFrequency  :: Maybe Double
                                              <?> "([Nothing] | DOUBLE) Filter duplications with too high a frequency (probably false positive if very high, for instance if over half of reads or 0.5). Converts these duplications to \"Normal\" sequences."
                        , method               :: Maybe String
@@ -56,11 +59,12 @@ main = do
         fmap (F.toList . snd . either error id . decodeByName) B.getContents
 
     let inputMethod = maybe CompareAll read . unHelpful . method $ opts
+        absOrFrac   = bool Fraction Absolute . unHelpful . absolute $ opts
         reads :: [ITDInfo]
         reads = maybe
                     (fmap printToInfo contents)
                     (\ readFreq -> fmap printToInfo
-                                 . convertHighFreqToNormal readFreq
+                                 . convertHighFreqToNormal absOrFrac readFreq
                                  $ contents
                     )
               . fmap Frequency

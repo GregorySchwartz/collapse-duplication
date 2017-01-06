@@ -1,5 +1,5 @@
 name:                collapse-duplication
-version:             0.3.1.2
+version:             0.3.2.0
 synopsis:            Collapse the duplication output into clones and return their frequencies.
 description:         Please see README.md
 homepage:            http://github.com/GregorySchwartz/collapse-duplication#readme

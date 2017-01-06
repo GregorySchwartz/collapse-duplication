@@ -35,29 +35,37 @@ convertReadToNormal read = read { dSubstring      = ""
                                 }
 
 -- | Get the set of frequent duplications.
-getFrequentDuplications :: Frequency -> [PrintITD] -> Set.Set B.ByteString
-getFrequentDuplications (Frequency freq) xs =
+getFrequentDuplications :: AbsoluteOrFraction
+                        -> Frequency
+                        -> [PrintITD]
+                        -> Set.Set B.ByteString
+getFrequentDuplications absOrFrac (Frequency freq) xs =
     Set.fromList
         . Map.keys
-        . Map.filter (> freq) 
-        . (\m -> Map.map (/ numReads) m)
+        . Map.filter (> freq)
+        . (\m -> Map.map (getFreq absOrFrac) m)
         . Map.fromListWith (+)
         . flip zip [1,1..]
         . fmap (\x -> dSubstring (x :: PrintITD))
         $ xs
   where
+    getFreq Absolute x = x
+    getFreq Fraction x = x / numReads
     numReads = genericLength xs
 
 -- | Convert high frequency duplication reads to normal reads.
-convertHighFreqToNormal :: Frequency -> [PrintITD] -> [PrintITD]
-convertHighFreqToNormal freq xs =
+convertHighFreqToNormal :: AbsoluteOrFraction
+                        -> Frequency
+                        -> [PrintITD]
+                        -> [PrintITD]
+convertHighFreqToNormal absOrFrac freq xs =
     fmap (\ x -> if Set.member (dSubstring (x :: PrintITD)) highSet
                     then convertReadToNormal x
                     else x
          )
         xs
   where
-    highSet = getFrequentDuplications freq xs
+    highSet = getFrequentDuplications absOrFrac freq xs
 
 -- | Filter reads from clones that have too low a frequency.
 readFrequencyFilter :: Frequency -> [PrintWithCloneID] -> [PrintWithCloneID]

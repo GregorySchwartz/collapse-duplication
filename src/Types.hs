@@ -25,6 +25,7 @@ newtype Frequency = Frequency Double
 
 -- Algebraic
 data Method = Hierarchical | CompareAll deriving (Read)
+data AbsoluteOrFraction = Absolute | Fraction
 
 data CurrentMinMax = CurrentMinMax
     { minMaxDLocationNum :: !(Maybe Int, Maybe Int)
