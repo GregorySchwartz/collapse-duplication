@@ -13,7 +13,7 @@ module Collapse
     , gatherWiggle
     , getLabelMap
     , collapse
-    , addCloneID
+    , addCloneIDs
     ) where
 
 -- Standard
@@ -31,7 +31,7 @@ import qualified Text.Show.ByteString as B
 
 -- Local
 import Types
-       
+
 -- | Convert PrintITD to ITDInfo.
 printToInfo :: PrintITD -> ITDInfo
 printToInfo x = ITDInfo
@@ -51,27 +51,27 @@ printToInfo x = ITDInfo
     , sSubstringLen   = fromIntegral . B.length $ sSubstring (x :: PrintITD)
     }
 
--- | Gather all reads of the same structure (same duplication
--- and spacer location and length) together, then collect by sample.
+-- | Gather all reads of the same subject, then same structure (same duplication
+-- and spacer location and length) together.
 gather :: [ITDInfo] -> [[[ITDInfo]]]
-gather = fmap labelGather . allGather
+gather = fmap allGather . subjectGather
   where
     allGather   = groupBy ((==) `on` compareFactors)
                 . sortBy (compare `on` compareFactors)
-    labelGather = groupBy ((==) `on` (label :: ITDInfo -> B.ByteString))
-                . sortBy (compare `on` (label :: ITDInfo -> B.ByteString))
+    subjectGather = groupBy ((==) `on` (head. B.split '_' . (label :: ITDInfo -> B.ByteString)))
+                  . sortBy (compare `on` (head . B.split '_' . (label :: ITDInfo -> B.ByteString)))
 
--- | Gather all reads of approximately the same structure (same duplication
--- and spacer location and length) together, depending on the amount of wiggle
--- room for the whole set, then collect by sample.
+-- | Gather all reads of approximately the same subject then same structure
+-- (same duplication and spacer location and length) together, depending on the
+-- amount of wiggle room for the whole set, then collect by sample.
 gatherWiggle :: Method -> Wiggle -> [ITDInfo] -> [[[ITDInfo]]]
-gatherWiggle method wiggle = fmap labelGather . allGather method . allSort
+gatherWiggle method wiggle = fmap (allGather method) . subjectGather . allSort
   where
     allGather Hierarchical = wiggleCluster wiggle
     allGather CompareAll   = wiggleCompare wiggle
     allSort     = sortBy (compare `on` compareFactors)
-    labelGather = groupBy ((==) `on` (label :: ITDInfo -> B.ByteString))
-                . sortBy (compare `on` (label :: ITDInfo -> B.ByteString))
+    subjectGather = groupBy ((==) `on` (head . B.split '_' . (label :: ITDInfo -> B.ByteString)))
+                  -- . sortBy (compare `on` (head . B.split '_' . (label :: ITDInfo -> B.ByteString)))
 
 -- | Gather all reads of the same label together into a map of how large a label is.
 getLabelMap :: [ITDInfo] -> Map.Map Label Int
@@ -130,7 +130,7 @@ getDistance x y =
     locDistance _ Nothing = (1 / 0)
     locDistance Nothing _ = (1 / 0)
     locDistance (Just a) (Just b) = fromIntegral $ abs (a - b)
-    
+
 -- | Test if two reads are approximately the same structure (same label, then
 -- same duplication and spacer location and length) together, depending on the
 -- amount of wiggle room.
@@ -164,7 +164,7 @@ wiggleTestMinMax (Wiggle wiggle) current x = (test, updateCurrentMinMax)
              . minMaxSSubstringLen
              $ current
 
--- | Whether to update the current min max and what to update it to.m
+-- | Whether to update the current min max and what to update it to.
 updateMinMax
     :: (CurrentMinMax -> (Int, Int))
     -> (ITDInfo -> Int)
@@ -176,7 +176,7 @@ updateMinMax currentF infoF current info =
         (1, _)  -> (infoF info, snd . currentF $ current)
         (_, -1) -> (fst . currentF $ current, infoF info)
         (_, _) -> currentF current
-        
+
 -- | Whether to update the current min max and what to update it to, Maybe
 -- version.
 updateMinMaxMaybe
@@ -200,7 +200,7 @@ locTest Nothing Nothing = Just 0
 locTest _ Nothing = Nothing
 locTest Nothing _ = Nothing
 locTest (Just a) (Just b) = Just . fromIntegral $ (a - b)
-    
+
 -- | Test if two reads are approximately the same structure (same label, then
 -- same duplication and spacer location and length) together, depending on the
 -- amount of wiggle room.
@@ -221,10 +221,11 @@ wiggleTest (Wiggle wiggle) x y =
     locTest (Just a) (Just b) = (fromIntegral $ abs (a - b)) <= wiggle
 
 -- | What properties we should be gathering reads on.
-compareFactors :: ITDInfo -> (Maybe Int, Maybe Int, Int, Int)
+compareFactors :: ITDInfo -> (B.ByteString, Maybe Int, Maybe Int, Int, Int)
 compareFactors x =
     --( dLocations (x :: ITDInfo)
-    ( dLocationNum x
+    ( head . B.split '_' . (label :: ITDInfo -> B.ByteString) $ x
+    , dLocationNum x
     , sLocationNum x
     , dSubstringLen x
     , sSubstringLen x
@@ -245,41 +246,64 @@ getLastDLocation x =
         else
             Nothing
 
+-- | Get the most frequent element of a list.
+getFrequent :: (Eq a, Ord a, Show a) => [a] -> a
+getFrequent = fst
+            . maximumBy (compare `on` snd)
+            . Map.toAscList
+            . Map.fromListWith (+)
+            . flip zip [1,1..]
+
 -- | Collapse a list of reads into one read with some additional information
 -- about the group, assuming the group was gathered.
-collapse :: Int -> [ITDInfo] -> PrintCollapsedITD
-collapse labelLen xs = result . head $ xs
+collapse :: ID -> Int -> [ITDInfo] -> PrintWithCloneID
+collapse (ID cloneID) labelLen xs = result . getFrequent . fmap unit $ xs
   where
-    result rep = PrintCollapsedITD
-                    { label           = label (rep :: ITDInfo)
-                    , fHeader         = fHeader (rep :: ITDInfo)
-                    , fSequence       = fSequence (rep :: ITDInfo)
-                    , dSubstring      = dSubstring (rep :: ITDInfo)
-                    , dLocations      = dLocations (rep :: ITDInfo)
-                    , dMutations      = dMutations (rep :: ITDInfo)
-                    , sSubstring      = sSubstring (rep :: ITDInfo)
-                    , sLocation       = sLocation (rep :: ITDInfo)
-                    , sOtherLocations = sOtherLocations (rep :: ITDInfo)
-                    , classification  = classification (rep :: ITDInfo)
+    result (!dSub, !dLoc, !dMut, !sSub, !sLoc, !sOther, !cla) = PrintWithCloneID
+                    { label           = (\x -> label (x :: ITDInfo)) . head $ xs
+                    , fHeader         = (\x -> fHeader (x :: ITDInfo)) . head $ xs
+                    , fSequence       = (\x -> fSequence (x :: ITDInfo)) . head $ xs
+                    , dSubstring      = getFrequent . fmap (\x -> dSubstring (x :: ITDInfo)) $ xs
+                    , dLocations      = getFrequent . fmap (\x -> dLocations (x :: ITDInfo)) $ xs
+                    , dMutations      = getFrequent . fmap (\x -> dMutations (x :: ITDInfo)) $ xs
+                    , sSubstring      = getFrequent . fmap (\x -> sSubstring (x :: ITDInfo)) $ xs
+                    , sLocation      = getFrequent . fmap (\x -> sLocation (x :: ITDInfo)) $ xs
+                    , sOtherLocations      = getFrequent . fmap (\x -> sOtherLocations (x :: ITDInfo)) $ xs
+                    , classification      = getFrequent . fmap (\x -> classification (x :: ITDInfo)) $ xs
                     , frequency       = genericLength xs / fromIntegral labelLen
-                    }
-
--- | Add a new clone label to the reads: unique IDs across the input.
-addCloneID :: ID -> Int -> [ITDInfo] -> [PrintWithCloneID]
-addCloneID (ID cloneID) labelLen xs = fmap addID xs
-  where
-    addID rep = PrintWithCloneID
-                    { label           = label (rep :: ITDInfo)
-                    , fHeader         = fHeader (rep :: ITDInfo)
-                    , fSequence       = fSequence (rep :: ITDInfo)
-                    , dSubstring      = dSubstring (rep :: ITDInfo)
-                    , dLocations      = dLocations (rep :: ITDInfo)
-                    , dMutations      = dMutations (rep :: ITDInfo)
-                    , sSubstring      = sSubstring (rep :: ITDInfo)
-                    , sLocation       = sLocation (rep :: ITDInfo)
-                    , sOtherLocations = sOtherLocations (rep :: ITDInfo)
-                    , classification  = classification (rep :: ITDInfo)
-                    , frequency       = cloneSize / fromIntegral labelLen
                     , cloneID         = B.show cloneID
                     }
+    unit x = ( dSubstring (x :: ITDInfo)
+             , dLocations (x :: ITDInfo)
+             , dMutations (x :: ITDInfo)
+             , sSubstring (x :: ITDInfo)
+             , sLocation (x :: ITDInfo)
+             , sOtherLocations (x :: ITDInfo)
+             , classification (x :: ITDInfo)
+             )
+
+-- | Add a new clone label to the reads: unique IDs across the input.
+addCloneIDs :: Entity -> ID -> Int -> [ITDInfo] -> [PrintWithCloneID]
+addCloneIDs entity cloneID labelLen xs = go entity xs
+  where
+    go Clone  = (:[]) . collapse cloneID labelLen
+    go Read   = addF
+    addF      = fmap (addCloneID cloneID cloneSize labelLen)
     cloneSize = genericLength xs
+
+addCloneID :: ID -> Int -> Int -> ITDInfo -> PrintWithCloneID
+addCloneID (ID cloneID) cloneSize labelLen rep = PrintWithCloneID
+                { label           = label (rep :: ITDInfo)
+                , fHeader         = fHeader (rep :: ITDInfo)
+                , fSequence       = fSequence (rep :: ITDInfo)
+                , dSubstring      = dSubstring (rep :: ITDInfo)
+                , dLocations      = dLocations (rep :: ITDInfo)
+                , dMutations      = dMutations (rep :: ITDInfo)
+                , sSubstring      = sSubstring (rep :: ITDInfo)
+                , sLocation       = sLocation (rep :: ITDInfo)
+                , sOtherLocations = sOtherLocations (rep :: ITDInfo)
+                , classification  = classification (rep :: ITDInfo)
+                , frequency       = fromIntegral cloneSize
+                                  / fromIntegral labelLen
+                , cloneID         = B.show cloneID
+                }

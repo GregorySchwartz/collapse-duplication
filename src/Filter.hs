@@ -9,8 +9,7 @@ Collects the functions pertaining to the filtering of reads and clones.
 
 module Filter
     ( convertHighFreqToNormal
-    , readFrequencyFilter
-    , cloneFrequencyFilter
+    , filterFrequency
     ) where
 
 -- Standard
@@ -35,44 +34,43 @@ convertReadToNormal read = read { dSubstring      = ""
                                 }
 
 -- | Get the set of frequent duplications.
-getFrequentDuplications :: AbsoluteOrFraction
+getFrequentDuplications :: FilterType
+                        -> AbsoluteOrFraction
                         -> Frequency
                         -> [PrintITD]
                         -> Set.Set B.ByteString
-getFrequentDuplications absOrFrac (Frequency freq) xs =
+getFrequentDuplications filterType absOrFrac (Frequency freq) xs =
     Set.fromList
         . Map.keys
         . Map.filter (> freq)
         . (\m -> Map.map (getFreq absOrFrac) m)
         . Map.fromListWith (+)
         . flip zip [1,1..]
-        . fmap (\x -> dSubstring (x :: PrintITD))
+        . fmap (whichField filterType)
         $ xs
   where
+    whichField Substring x = dSubstring (x :: PrintITD)
+    whichField Position x  = dLocations (x :: PrintITD)
     getFreq Absolute x = x
     getFreq Fraction x = x / numReads
     numReads = genericLength xs
 
 -- | Convert high frequency duplication reads to normal reads.
-convertHighFreqToNormal :: AbsoluteOrFraction
+convertHighFreqToNormal :: FilterType
+                        -> AbsoluteOrFraction
                         -> Frequency
                         -> [PrintITD]
                         -> [PrintITD]
-convertHighFreqToNormal absOrFrac freq xs =
+convertHighFreqToNormal filterType absOrFrac freq xs =
     fmap (\ x -> if Set.member (dSubstring (x :: PrintITD)) highSet
                     then convertReadToNormal x
                     else x
          )
         xs
   where
-    highSet = getFrequentDuplications absOrFrac freq xs
+    highSet = getFrequentDuplications filterType absOrFrac freq xs
 
 -- | Filter reads from clones that have too low a frequency.
-readFrequencyFilter :: Frequency -> [PrintWithCloneID] -> [PrintWithCloneID]
-readFrequencyFilter (Frequency freq) =
+filterFrequency :: Frequency -> [PrintWithCloneID] -> [PrintWithCloneID]
+filterFrequency (Frequency freq) =
     filter (\x -> (> freq) (frequency (x :: PrintWithCloneID)))
-
--- | Filter clones that have too low a frequency.
-cloneFrequencyFilter :: Frequency -> [PrintCollapsedITD] -> [PrintCollapsedITD]
-cloneFrequencyFilter (Frequency freq) =
-    filter (\x -> (> freq) (frequency (x :: PrintCollapsedITD)))

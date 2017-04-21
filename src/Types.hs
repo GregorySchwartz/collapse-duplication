@@ -24,6 +24,8 @@ newtype Label     = Label B.ByteString deriving (Eq, Ord)
 newtype Frequency = Frequency Double
 
 -- Algebraic
+data Entity = Clone | Read
+data FilterType = Substring | Position deriving (Read)
 data Method = Hierarchical | CompareAll deriving (Read)
 data AbsoluteOrFraction = Absolute | Fraction
 
