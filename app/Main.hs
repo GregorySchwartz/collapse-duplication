@@ -48,7 +48,7 @@ data Options = Options { output               :: Maybe String
                        , filterType           :: Maybe String
                                              <?> "([Substring] | Position) Whether to filter reads with filterReadFrequency using the dSubstring field or the dLocations field."
                        , method               :: Maybe String
-                                             <?> "([Hierarchical] | CompareAll) The method used to group together wiggle room reads. Compare all compares the current element with all elements in the previous sublist."
+                                             <?> "([CompareAll] | Hierarchical) The method used to group together wiggle room reads. Compare all compares the current element with all elements in the previous sublist. Hierarchical is for clustering, but is most likely worse at this point in time."
                        }
                deriving (Generic)
 
