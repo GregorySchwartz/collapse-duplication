@@ -31,7 +31,7 @@ library
 executable collapse-duplication
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
+  ghc-options:         -threaded -rtsopts -O2
   build-depends:       base
                      , collapse-duplication
                      , optparse-generic
