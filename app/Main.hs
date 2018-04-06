@@ -52,7 +52,7 @@ data Options = Options { output               :: Maybe String
                        }
                deriving (Generic)
 
-instance ParseRecord Options
+instance ParseRecord Main.Options
 
 main :: IO ()
 main = do
