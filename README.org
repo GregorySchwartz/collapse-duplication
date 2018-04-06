@@ -1,0 +1,84 @@
+* =collapse-duplications=
+
+** Description
+
+=collapse-duplications= collapses output from =heatitup= and =heatitup-complete=
+into clones by looking at the positions of their duplications and spacers.
+
+** Installation
+
+*** Install =stack=
+
+See [[https://docs.haskellstack.org/en/stable/README/]] for more details.
+
+#+BEGIN_SRC sh
+curl -sSL https://get.haskellstack.org/ | sh
+stack setup
+#+END_SRC
+
+*** Install =collapse-duplication=
+
+**** Online
+
+#+BEGIN_SRC sh
+stack install collapse-duplication
+#+END_SRC
+
+**** Source
+
+#+BEGIN_SRC sh
+stack install
+#+END_SRC
+
+** Usage
+
+#+BEGIN_SRC sh
+collapse-duplication --wiggle 5 --filterCloneFrequency 0.01 --collapseClone
+#+END_SRC
+
+** Documentation
+
+#+BEGIN_EXAMPLE
+collapse-duplication, Gregory W. Schwartz. Collapse the duplication output into
+clones and return their frequencies or clone IDs. Make sure format of the label
+field is SUBJECT_SAMPLE
+
+Usage: collapse-duplication [--output STRING] [--collapseClone]
+                            [--wiggle DOUBLE] --filterCloneFrequency DOUBLE
+                            [--filterReadFrequency DOUBLE] [--absolute]
+                            [--filterType STRING] [--method STRING]
+
+Available options:
+  -h,--help                Show this help text
+  --output STRING          (FILE) The output file.
+  --collapseClone          Collapse the clone into a representative sequence
+                           instead of appending clone IDs to the reads.
+  --wiggle DOUBLE          ([0] | DOUBLE) Highly recommended to play around
+                           with! The amount of wiggle room for defining clones.
+                           Instead of grouping exactly by same duplication and
+                           spacer location and length, allow for a position
+                           distance of this much (so no two reads have a
+                           difference of more than this number).
+  --filterCloneFrequency DOUBLE
+                           ([0.01] | DOUBLE) Filter reads (or clones) from
+                           clones with too low a frequency. Default is 0.01
+                           (1%).
+  --filterReadFrequency DOUBLE
+                           ([Nothing] | DOUBLE) Filter duplications with too
+                           high a frequency (probably false positive if very
+                           high, for instance if over half of reads or 0.5).
+                           Converts these duplications to "Normal" sequences.
+                           Frequencies and counts are taken place before
+                           collapsing and filtering.
+  --absolute               Whether to filter reads (or clones) from clones with
+                           too low an absolute number for filterReadFrequency
+                           instead frequency.
+  --filterType STRING      ([Substring] | Position) Whether to filter reads with
+                           filterReadFrequency using the dSubstring field or the
+                           dLocations field.
+  --method STRING          ([CompareAll] | Hierarchical) The method used to
+                           group together wiggle room reads. Compare all
+                           compares the current element with all elements in the
+                           previous sublist. Hierarchical is for clustering, but
+                           is most likely worse at this point in time.
+#+END_EXAMPLE
