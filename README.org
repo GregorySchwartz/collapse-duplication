@@ -32,8 +32,10 @@ stack install
 
 ** Usage
 
+Here, =heatitup_output.csv= must have a =label= field with the format =SUBJECT_SAMPLE=.
+
 #+BEGIN_SRC sh
-collapse-duplication --wiggle 5 --filterCloneFrequency 0.01 --collapseClone
+cat heatitup_output.csv | collapse-duplication --wiggle 5 --filterCloneFrequency 0.01 --collapseClone
 #+END_SRC
 
 ** Documentation
