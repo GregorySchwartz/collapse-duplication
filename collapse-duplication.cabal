@@ -7,7 +7,7 @@ license:             GPL-3
 license-file:        LICENSE
 author:              Gregory W. Schwartz
 maintainer:          gsch@mail.med.upenn.edu
-copyright:           Copyright: (c) 2016 Gregory W. Schwartz
+copyright:           Copyright: (c) 2018 Gregory W. Schwartz
 category:            Bioinformatics
 build-type:          Simple
 -- extra-source-files:
