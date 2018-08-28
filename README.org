@@ -1,8 +1,8 @@
-* =collapse-duplications=
+* =collapse-duplication=
 
 ** Description
 
-=collapse-duplications= collapses output from =heatitup= and =heatitup-complete=
+=collapse-duplication= collapses output from =heatitup= and =heatitup-complete=
 into clones by looking at the positions of their duplications and spacers.
 
 ** Installation
