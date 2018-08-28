@@ -1,7 +1,7 @@
 name:                collapse-duplication
 version:             0.4.0.1
 synopsis:            Collapse the duplication output into clones and return their frequencies.
-description:         Please see README.md
+description:         Process the output of heatitup in order to collapse sequences into clones by similar ITD mutations.
 homepage:            http://github.com/GregorySchwartz/collapse-duplication#readme
 license:             GPL-3
 license-file:        LICENSE
